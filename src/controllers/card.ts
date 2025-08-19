@@ -11,12 +11,16 @@ export const createCard = (req: RequestWithUser, res: Response) => {
   const { name, link } = req.body;
   const { user } = req as RequestWithUser;
   return Card.create({ name, link, owner: user?._id })
-    .then((card) => res.send({ data: card }))
+    .then((card) => res.status(201).send({ data: card }))
     .catch((err) => {
       if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: 'Illegal request parameters' });
+        return res
+          .status(ErrorCode.BadRequest)
+          .send({ message: 'Illegal request parameters' });
       }
-      return res.status(ErrorCode.GeneralError).send({ message: 'Server Error' });
+      return res
+        .status(ErrorCode.GeneralError)
+        .send({ message: 'Server Error' });
     });
 };
 export const deleteCard = (req: RequestWithUser, res: Response) => {
@@ -24,7 +28,9 @@ export const deleteCard = (req: RequestWithUser, res: Response) => {
   return Card.deleteOne({ _id: cardId })
     .then((card) => {
       if (!card) {
-        const error: NodeJS.ErrnoException = new Error(`Card with id "${req?.user?._id}" not found`);
+        const error: NodeJS.ErrnoException = new Error(
+          `Card with id "${req?.user?._id}" not found`,
+        );
         error.code = '404';
         return Promise.reject(error);
       }
@@ -35,9 +41,13 @@ export const deleteCard = (req: RequestWithUser, res: Response) => {
         return res.status(ErrorCode.NotFound).send({ message: err.message });
       }
       if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: 'Illegal request parameters' });
+        return res
+          .status(ErrorCode.BadRequest)
+          .send({ message: 'Illegal request parameters' });
       }
-      return res.status(ErrorCode.GeneralError).send({ message: 'Server Error' });
+      return res
+        .status(ErrorCode.GeneralError)
+        .send({ message: 'Server Error' });
     });
 };
 
@@ -45,10 +55,16 @@ export const likeCard = (req: RequestWithUser, res: Response) => {
   const { cardId } = req.params;
   const { user } = req as RequestWithUser;
 
-  return Card.findByIdAndUpdate(cardId, { $addToSet: { likes: user?._id } }, { new: true })
+  return Card.findByIdAndUpdate(
+    cardId,
+    { $addToSet: { likes: user?._id } },
+    { new: true, runValidators: true },
+  )
     .then((card) => {
       if (!card) {
-        const error: NodeJS.ErrnoException = new Error(`Card with id "${req?.user?._id}" not found`);
+        const error: NodeJS.ErrnoException = new Error(
+          `Card with id "${req?.user?._id}" not found`,
+        );
         error.code = '404';
         return Promise.reject(error);
       }
@@ -59,9 +75,13 @@ export const likeCard = (req: RequestWithUser, res: Response) => {
         return res.status(ErrorCode.NotFound).send({ message: err.message });
       }
       if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: 'Illegal request parameters' });
+        return res
+          .status(ErrorCode.BadRequest)
+          .send({ message: 'Illegal request parameters' });
       }
-      return res.status(ErrorCode.GeneralError).send({ message: 'Server Error' });
+      return res
+        .status(ErrorCode.GeneralError)
+        .send({ message: 'Server Error' });
     });
 };
 
@@ -72,11 +92,13 @@ export const dislikeCard = (req: RequestWithUser, res: Response) => {
   return Card.findByIdAndUpdate(
     cardId,
     { $pull: { likes: user?._id } },
-    { new: true },
+    { new: true, runValidators: true },
   )
     .then((card) => {
       if (!card) {
-        const error: NodeJS.ErrnoException = new Error(`Card with id "${req?.user?._id}" not found`);
+        const error: NodeJS.ErrnoException = new Error(
+          `Card with id "${req?.user?._id}" not found`,
+        );
         error.code = '404';
         return Promise.reject(error);
       }
@@ -87,8 +109,12 @@ export const dislikeCard = (req: RequestWithUser, res: Response) => {
         return res.status(ErrorCode.NotFound).send({ message: err.message });
       }
       if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: 'Illegal request parameters' });
+        return res
+          .status(ErrorCode.BadRequest)
+          .send({ message: 'Illegal request parameters' });
       }
-      return res.status(ErrorCode.GeneralError).send({ message: 'Server Error' });
+      return res
+        .status(ErrorCode.GeneralError)
+        .send({ message: 'Server Error' });
     });
 };
