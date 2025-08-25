@@ -1,14 +1,18 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
 import User, { RequestWithUser } from '../models/user';
 import { SuccessCode } from '../constants/statuses';
 import { JWTCode } from '../constants/code';
 
 const NotFoundError = require('../errors/not-found-error');
+const BadRequestError = require('../errors/illegal-params-error');
+const ConflictError = require('../errors/conflict-error');
 
 export const getCurrentUser = (req: RequestWithUser, res: Response, next: NextFunction) => {
   const userId = req?.user?._id || null;
+
   return User.findById(userId)
     .then((user) => {
       if (!user) {
@@ -36,6 +40,15 @@ export const getUsers = (_: Request, res: Response, next: NextFunction) => User.
 
 export const getUser = (req: Request, res: Response, next: NextFunction) => {
   const { userId } = req.params;
+
+  try {
+    if (!mongoose.isValidObjectId(userId)) {
+      throw new BadRequestError('Invalid userId format');
+    }
+  } catch (err) {
+    return next(err);
+  }
+
   return User.findById(userId)
     .then((user) => {
       if (!user) {
@@ -53,7 +66,12 @@ export const createUser = (req: Request, res: Response, next: NextFunction) => {
     name, about, avatar, email, password: hash,
   })
     .then((user) => res.status(SuccessCode.Created).send({ data: user }))
-    .catch(next));
+    .catch((err) => {
+      if (err && err.code === 11000 && err.keyValue?.email) {
+        return next(new ConflictError('This email already exists'));
+      }
+      return next(err);
+    }));
 };
 
 export const updateUser = (req: RequestWithUser, res: Response, next: NextFunction) => {

@@ -22,7 +22,7 @@ router.get(
 );
 router.get('/:userId', celebrate({
   params: Joi.object().keys({
-    userId: Joi.string().alphanum(),
+    userId: Joi.string().hex(),
   }),
   headers: Joi.object({
     authorization: Joi.string().required(),
@@ -40,10 +40,6 @@ router.patch('/me', celebrate({
 router.get(
   '/me',
   celebrate({
-    body: {
-      name: Joi.string().min(2).max(30),
-      about: Joi.string().min(2).max(200),
-    },
     headers: Joi.object({
       authorization: Joi.string().required(),
     }).unknown(),
@@ -52,7 +48,7 @@ router.get(
 );
 router.patch('/me/avatar', celebrate({
   body: {
-    avatar: Joi.string(),
+    avatar: Joi.string().uri(),
   },
   headers: Joi.object({
     authorization: Joi.string().required(),

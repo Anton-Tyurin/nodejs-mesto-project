@@ -1,9 +1,11 @@
 import { JwtPayload } from 'jsonwebtoken';
 import { NextFunction, Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Card from '../models/card';
 import { SuccessCode } from '../constants/statuses';
 
 const NotFoundError = require('../errors/not-found-error');
+const BadRequestError = require('../errors/illegal-params-error');
 
 export const getCards = (_: Request, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.send({ data: cards }))
@@ -33,6 +35,14 @@ export const likeCard = (req: Request &
   const { cardId } = req.params;
   const userId = req?.user?._id || null;
 
+  try {
+    if (!mongoose.isValidObjectId(cardId)) {
+      throw new BadRequestError('Invalid cardId format');
+    }
+  } catch (err) {
+    return next(err);
+  }
+
   return Card.findByIdAndUpdate(
     cardId,
     { $addToSet: { likes: userId } },
@@ -51,6 +61,14 @@ export const dislikeCard = (req: Request &
   { user?: { _id: JwtPayload }}, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
   const userId = req?.user?._id || null;
+
+  try {
+    if (!mongoose.isValidObjectId(cardId)) {
+      throw new BadRequestError('Invalid cardId format');
+    }
+  } catch (err) {
+    return next(err);
+  }
 
   return Card.findByIdAndUpdate(
     cardId,

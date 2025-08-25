@@ -5,12 +5,12 @@ import { celebrate, Joi } from 'celebrate';
 import user from './routes/user';
 import card from './routes/card';
 import { requestLogger, errorLogger } from './middlewares/logger';
-import { ErrorWithStatusCode } from './errors';
-import { ErrorCode } from './constants/statuses';
 import { createUser, login } from './controllers/user';
 import auth from './middlewares/auth';
+import errorHandler from './middlewares/errorsHandler';
 
-const { errors } = require('celebrate');
+const { errors: celebrateErrorsHandler } = require('celebrate');
+const NotFoundError = require('./errors/not-found-error');
 
 const { PORT = 3000 } = process.env;
 const app = express();
@@ -41,7 +41,7 @@ app.post('/signup', celebrate({
     password: Joi.string().required(),
     name: Joi.string().min(2).max(30),
     about: Joi.string().min(2).max(200),
-    avatar: Joi.string(),
+    avatar: Joi.string().uri(),
   }),
 }), createUser);
 
@@ -49,27 +49,13 @@ app.use(auth);
 
 app.use('/users', user);
 app.use('/cards', card);
-app.use(errorLogger);
 
-app.use(errors());
-
-app.use((err: ErrorWithStatusCode &
-  { code?: number }, req: Request, res: Response, next: NextFunction) => {
-  const { statusCode = ErrorCode.GeneralError, message } = err;
-
-  if (err.code === ErrorCode.ValidationError) {
-    res
-      .status(ErrorCode.ConflictError)
-      .send({ message: 'This email already exists' });
-  }
-
-  res
-    .status(statusCode)
-    .send({
-      message: statusCode === ErrorCode.GeneralError
-        ? 'Internal Server Error'
-        : message,
-    });
+app.use((req: Request, res: Response, next: NextFunction) => {
+  next(new NotFoundError('Url not found'));
 });
+
+app.use(errorLogger);
+app.use(celebrateErrorsHandler());
+app.use(errorHandler);
 
 app.listen(PORT);

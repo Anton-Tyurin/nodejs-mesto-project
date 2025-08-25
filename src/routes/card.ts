@@ -19,7 +19,7 @@ router.get('/', celebrate({
 router.post('/', celebrate({
   body: Joi.object().keys({
     name: Joi.string().required().min(2).max(30),
-    link: Joi.string().required().min(2).max(30),
+    link: Joi.string().required().uri(),
   }),
   headers: Joi.object({
     authorization: Joi.string().required(),
@@ -27,7 +27,7 @@ router.post('/', celebrate({
 }), createCard);
 router.delete('/:cardId', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().alphanum(),
+    cardId: Joi.string().hex().required(),
   }),
   headers: Joi.object({
     authorization: Joi.string().required(),
@@ -35,7 +35,7 @@ router.delete('/:cardId', celebrate({
 }), deleteCard);
 router.put('/:cardId/likes', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().alphanum(),
+    cardId: Joi.string().hex().required(),
   }),
   headers: Joi.object({
     authorization: Joi.string().required(),
@@ -43,7 +43,7 @@ router.put('/:cardId/likes', celebrate({
 }), likeCard);
 router.delete('/:cardId/likes', celebrate({
   params: Joi.object().keys({
-    cardId: Joi.string().alphanum(),
+    cardId: Joi.string().hex().required(),
   }),
   headers: Joi.object({
     authorization: Joi.string().required(),
