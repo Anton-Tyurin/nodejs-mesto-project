@@ -1,15 +1,25 @@
-// models/user.ts
-import { Schema, model } from 'mongoose';
+import { JwtPayload } from 'jsonwebtoken';
+import mongoose, { Schema, model } from 'mongoose';
+import { IUser } from './user';
+import { URL_REGEXP } from '../constants/regexps';
 
 interface ICard {
   name: string;
   link: string;
-  owner: Schema.Types.ObjectId;
+  owner: Schema.Types.ObjectId | IUser;
   likes?: Schema.Types.ObjectId[];
   createdAt?: Date;
 }
 
-const cardSchema = new Schema(
+const NotFoundError = require('../errors/not-found-error');
+const UnauthorizedError = require('../errors/unauthorized-error');
+
+interface CardModel extends mongoose.Model<ICard> {
+  checkCardRights: (cardId: string, userId: JwtPayload | null) =>
+    Promise<mongoose.Document<unknown, any, ICard>>
+}
+
+const cardSchema = new Schema<ICard, CardModel>(
   {
     name: {
       type: String,
@@ -19,6 +29,7 @@ const cardSchema = new Schema(
     },
     link: {
       type: String,
+      match: [URL_REGEXP, 'invalid url'],
       required: [true, 'Field "link" is required'],
     },
     owner: {
@@ -38,4 +49,19 @@ const cardSchema = new Schema(
   { versionKey: false },
 );
 
-export default model<ICard>('card', cardSchema);
+cardSchema.static('checkCardRights', function checkCardRights(cardId: string, userId: string) {
+  return this.findOne({ cardId })
+    .populate('owner')
+    .then((card) => {
+      const owner = card?.owner as IUser;
+      if (!card) {
+        throw new NotFoundError(`Card with id "${cardId}" not found`);
+      }
+      if (owner._id !== userId) {
+        throw new UnauthorizedError('User has not rights to delete card');
+      }
+      return card;
+    });
+});
+
+export default model<ICard, CardModel>('card', cardSchema);

@@ -1,124 +1,89 @@
-import { Request, Response } from 'express';
-
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import * as bcrypt from 'bcrypt';
 import User, { RequestWithUser } from '../models/user';
-import { ErrorCode } from '../constants/errors';
+import { SuccessCode } from '../constants/statuses';
+import { JWTCode } from '../constants/code';
 
-export const getUsers = (_: Request, res: Response) => User.find({})
+const NotFoundError = require('../errors/not-found-error');
+
+export const getCurrentUser = (req: RequestWithUser, res: Response, next: NextFunction) => {
+  const userId = req?.user?._id || null;
+  return User.findById(userId)
+    .then((user) => {
+      if (!user) {
+        throw new NotFoundError(`User with id "${userId}" not found`);
+      }
+      return res.send({ data: user });
+    }).catch(next);
+};
+
+export const login = (req: Request, res: Response, next: NextFunction) => {
+  const { email, password } = req.body;
+
+  return User.findUserByCredentials(email, password)
+    .then((user) => {
+      const token = jwt.sign({ _id: user._id }, JWTCode, { expiresIn: '7d' });
+
+      res.cookie('jwt', token, { maxAge: 3600000 * 24 * 7, httpOnly: true });
+      return res.send({ data: user });
+    }).catch(next);
+};
+
+export const getUsers = (_: Request, res: Response, next: NextFunction) => User.find({})
   .then((users) => res.send({ data: users }))
-  .catch(() => res.status(ErrorCode.GeneralError).send({ message: 'Server Error' }));
+  .catch(next);
 
-export const getUser = (req: Request, res: Response) => {
+export const getUser = (req: Request, res: Response, next: NextFunction) => {
   const { userId } = req.params;
   return User.findById(userId)
     .then((user) => {
       if (!user) {
-        const error: NodeJS.ErrnoException = new Error(
-          `User with id "${userId}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
+        throw new NotFoundError(`User with id "${userId}" not found`);
       }
       return res.send({ data: user });
-    })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    }).catch(next);
 };
 
-export const createUser = (req: Request, res: Response) => {
-  const { name, about, avatar } = req.body;
-
-  return User.create({ name, about, avatar })
-    .then((user) => res.status(201).send({ data: user }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res
-          .status(ErrorCode.BadRequest)
-          .send({ message: 'Illegal request parameters' });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+export const createUser = (req: Request, res: Response, next: NextFunction) => {
+  const {
+    name, about, avatar, email, password,
+  } = req.body;
+  bcrypt.hash(password, 10).then((hash: string) => User.create({
+    name, about, avatar, email, password: hash,
+  })
+    .then((user) => res.status(SuccessCode.Created).send({ data: user }))
+    .catch(next));
 };
 
-export const updateUser = (req: RequestWithUser, res: Response) => {
+export const updateUser = (req: RequestWithUser, res: Response, next: NextFunction) => {
   const { name, about } = req.body;
-  const { user } = req as RequestWithUser;
+  const userId = req?.user?._id || null;
   return User.findByIdAndUpdate(
-    user?._id,
+    userId,
     { name, about },
     { new: true, runValidators: true },
   )
     .then((userById) => {
-      if (!name && !about) {
-        const error: NodeJS.ErrnoException = new Error(
-          'Illegal request parameters',
-        );
-        error.code = '400';
-        return Promise.reject(error);
-      }
       if (!userById) {
-        const error: NodeJS.ErrnoException = new Error(
-          `User with id "${req.user?._id}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
+        throw new NotFoundError(`User with id "${userId}" not found`);
       }
       return res.send({ data: userById });
-    })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: err.message });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    }).catch(next);
 };
 
-export const updateUserAvatar = (req: RequestWithUser, res: Response) => {
+export const updateUserAvatar = (req: RequestWithUser, res: Response, next: NextFunction) => {
   const { avatar } = req.body;
-  const { user } = req as RequestWithUser;
+  const userId = req?.user?._id || null;
   return User.findByIdAndUpdate(
-    user?._id,
+    userId,
     { avatar },
     { new: true, runValidators: true },
   )
     .then((userById) => {
-      if (!avatar) {
-        const error: NodeJS.ErrnoException = new Error(
-          'Illegal request parameters',
-        );
-        error.code = '400';
-        return Promise.reject(error);
-      }
       if (!userById) {
-        const error: NodeJS.ErrnoException = new Error(
-          `User with id "${req.user?._id}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
+        throw new NotFoundError(`User with id "${userId}" not found`);
       }
       return res.send({ data: userById });
-    })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      if (err.name === 'ValidationError') {
-        return res.status(ErrorCode.BadRequest).send({ message: err.message });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    }).catch(next);
 };

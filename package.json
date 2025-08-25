@@ -13,8 +13,11 @@
   "author": "Anton Tyuirn",
   "license": "ISC",
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.2.1",
+    "@types/validator": "^13.15.2",
     "@typescript-eslint/eslint-plugin": "^8.39.1",
     "@typescript-eslint/parser": "^8.39.1",
     "eslint": "^8.2.0",
@@ -25,9 +28,15 @@
     "typescript": "^5.9.2"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "celebrate": "^15.0.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
+    "express-winston": "^4.2.0",
+    "jsonwebtoken": "^9.0.2",
     "mongodb": "^6.18.0",
-    "mongoose": "^8.17.1"
+    "mongoose": "^8.17.1",
+    "validator": "^13.15.15",
+    "winston": "^3.17.0"
   }
 }

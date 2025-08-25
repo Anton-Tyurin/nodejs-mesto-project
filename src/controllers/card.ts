@@ -1,120 +1,67 @@
-import { Request, Response } from 'express';
-import { RequestWithUser } from '../models/user';
+import { JwtPayload } from 'jsonwebtoken';
+import { NextFunction, Request, Response } from 'express';
 import Card from '../models/card';
-import { ErrorCode } from '../constants/errors';
+import { SuccessCode } from '../constants/statuses';
 
-export const getCards = (_: Request, res: Response) => Card.find({})
+const NotFoundError = require('../errors/not-found-error');
+
+export const getCards = (_: Request, res: Response, next: NextFunction) => Card.find({})
   .then((cards) => res.send({ data: cards }))
-  .catch(() => res.status(ErrorCode.GeneralError).send({ message: 'Server Error' }));
+  .catch(next);
 
-export const createCard = (req: RequestWithUser, res: Response) => {
+export const createCard = (req: Request &
+  { user?: { _id: JwtPayload }}, res: Response, next: NextFunction) => {
   const { name, link } = req.body;
-  const { user } = req as RequestWithUser;
-  return Card.create({ name, link, owner: user?._id })
-    .then((card) => res.status(201).send({ data: card }))
-    .catch((err) => {
-      if (err.name === 'ValidationError') {
-        return res
-          .status(ErrorCode.BadRequest)
-          .send({ message: 'Illegal request parameters' });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+  const userId = req?.user?._id || null;
+  return Card.create({ name, link, owner: userId })
+    .then((card) => res.status(SuccessCode.Created).send({ data: card }))
+    .catch(next);
 };
-export const deleteCard = (req: RequestWithUser, res: Response) => {
+export const deleteCard = (req: Request &
+  { user?: { _id: JwtPayload }}, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  return Card.deleteOne({ _id: cardId })
-    .then((card) => {
-      if (!card) {
-        const error: NodeJS.ErrnoException = new Error(
-          `Card with id "${req?.user?._id}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
-      }
-      return res.send({ data: card });
+  const userId = req?.user?._id || null;
+  return Card.checkCardRights(cardId, userId)
+    .then((card) => Card.deleteOne({ _id: card._id })).then((card) => {
+      res.send({ data: card });
     })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      if (err.name === 'ValidationError') {
-        return res
-          .status(ErrorCode.BadRequest)
-          .send({ message: 'Illegal request parameters' });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    .catch(next);
 };
 
-export const likeCard = (req: RequestWithUser, res: Response) => {
+export const likeCard = (req: Request &
+  { user?: { _id: JwtPayload }}, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  const { user } = req as RequestWithUser;
+  const userId = req?.user?._id || null;
 
   return Card.findByIdAndUpdate(
     cardId,
-    { $addToSet: { likes: user?._id } },
+    { $addToSet: { likes: userId } },
     { new: true, runValidators: true },
   )
     .then((card) => {
       if (!card) {
-        const error: NodeJS.ErrnoException = new Error(
-          `Card with id "${req?.user?._id}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
+        throw new NotFoundError(`Card with id "${cardId}" not found`);
       }
       return res.send({ data: card });
     })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      if (err.name === 'ValidationError') {
-        return res
-          .status(ErrorCode.BadRequest)
-          .send({ message: 'Illegal request parameters' });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    .catch(next);
 };
 
-export const dislikeCard = (req: RequestWithUser, res: Response) => {
+export const dislikeCard = (req: Request &
+  { user?: { _id: JwtPayload }}, res: Response, next: NextFunction) => {
   const { cardId } = req.params;
-  const { user } = req as RequestWithUser;
+  const userId = req?.user?._id || null;
 
   return Card.findByIdAndUpdate(
     cardId,
-    { $pull: { likes: user?._id } },
+    { $pull: { likes: userId } },
     { new: true, runValidators: true },
   )
     .then((card) => {
       if (!card) {
-        const error: NodeJS.ErrnoException = new Error(
-          `Card with id "${req?.user?._id}" not found`,
-        );
-        error.code = '404';
-        return Promise.reject(error);
+        throw new NotFoundError(`Card with id "${cardId}" not found`);
       }
       return res.send({ data: card });
     })
-    .catch((err: NodeJS.ErrnoException) => {
-      if (Number(err.code) === ErrorCode.NotFound) {
-        return res.status(ErrorCode.NotFound).send({ message: err.message });
-      }
-      if (err.name === 'ValidationError') {
-        return res
-          .status(ErrorCode.BadRequest)
-          .send({ message: 'Illegal request parameters' });
-      }
-      return res
-        .status(ErrorCode.GeneralError)
-        .send({ message: 'Server Error' });
-    });
+    .catch(next);
 };
